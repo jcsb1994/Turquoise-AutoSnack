@@ -13,8 +13,8 @@
 /**************************************************************************************************************************************************************/
 
 
-#define switchPin  3
-#define ledPin  2
+#define switchPin  2
+#define ledPin  1
 #define voltagePin  4
 
 
@@ -38,6 +38,17 @@ int voltage;
 #define minReset  175 //120 to 166 based on a 10k resistor value for SELECT button
 #define maxReset  189
 
+
+//Food Data variables
+
+//amount of meals per day
+byte meal_nb;
+#define max_meal_nb 3
+
+//amount of cylinder spins (meal size)
+byte meal_size;
+#define max_meal_size 5
+
 /**************************************************************************************************************************************************************/
 ////OBJECTS
 /**************************************************************************************************************************************************************/
@@ -52,9 +63,10 @@ void setup() {
 
 
   //pins setup
-  pinMode(switchPin, INPUT);
-  digitalWrite(switchPin, HIGH);
-  pinMode(ledPin, OUTPUT);
+  DDRB &= ~(1 << switchPin);
+  PORTB |= (1 << switchPin);
+  DDRB |= (1 << ledPin);
+
 
 
 
@@ -65,6 +77,21 @@ void setup() {
   WDTCR = 0B100001; //Set prescaler to 8 sec (see p.46 of datasheet to change prescaler), and OVERWRITE WDTCR value ( dont just use |= )
   WDTCR |= _BV(WDIE); //Set the interrupt enable, this will keep unit from resetting after each int
 
+
+
+  //External interrupt setup
+  //Enable interrupts
+  GIMSK |= (1 << INT0);
+  sei();
+  //set low lvl trigger (keeps triggering while button not released)
+  MCUCR &= ~(1 << ISC01);
+  //TRYING TO PUT THIS INSTEAD!! (FOR FALLING EDGE):  MCUCR |= (1 << ISC01);
+  MCUCR &= ~(1 << ISC00);
+
+
+  ADCSRA &= ~_BV(ADEN);      //Turn ADC off, saves ~230uA           
+  sleep_enable();
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
 
 
@@ -75,10 +102,17 @@ void setup() {
 
 
 void loop() {
-  sleep();
-  digitalWrite(ledPin, HIGH);
-  delay(200);
-  digitalWrite(ledPin, LOW);
+  sleep_cpu();
+  //ADCSRA |= _BV(ADEN);        //will ADC need to be turned on after sleep?
+  
+  PORTB |= (1 << ledPin);
+  delay(100);
+  PORTB ^= (1 << ledPin);
+  delay(500);
+
+  if (buttonFlag) {
+    buttonFlag = 0;
+  }
 }
 
 
@@ -87,31 +121,35 @@ void loop() {
 /**************************************************************************************************************************************************************/
 
 /*Sleep function, activates external interrupts*/
-void sleep() {
-  //VOIR PCIE bit dans GIMSK REGISTER POUR ++ INTERRUPTS DE PCINT0 à 5, avec l'aide de PCMSK0
-  //_BV(); vient de bit value. _BV(x) équivaut à 1 << x, donc on peut mettre une bit désirée
-  //de la mm manière que |= ou &=
-  GIMSK |= _BV(PCIE);                     // Enable Pin Change Interrupts
-  PCMSK |= _BV(PCINT3);                   // Use PB3 as interrupt pin
+/*void sleep() {
+
+  GIMSK |= _BV(INT0);
+   sei();                                  // Enable interrupts
+    MCUCR |= 1<<ISC01; // Falling EDGE
+
+
+
+
+  //PCMSK |= _BV(PCINT2);                   // Use PB2 as interrupt pin (PCINT3 would be 3, etc.)
   ADCSRA &= ~_BV(ADEN);                   // ADC off
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // replaces above statement
 
   sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
-  sei();                                  // Enable interrupts
+  // sei();                                  // Enable interrupts
   sleep_cpu();                            // sleep
 
   cli();                                  // Disable interrupts
-  PCMSK &= ~_BV(PCINT3);                  // Turn off PB3 as interrupt pin
+  //PCMSK &= ~_BV(PCINT2);                  // Turn off PB2 as interrupt pin
   sleep_disable();                        // Clear SE bit
   ADCSRA |= _BV(ADEN);                    // ADC on
 
   sei();                                  // Enable interrupts
-} // sleep
+  } // sleep*/
 
 
 
-ISR(PCINT0_vect) {
-  
+ISR(INT0_vect) { //NOT PCINT0_vect!
+
   unsigned long interrupt_time = millis(); //saves time at which this interrupt starts
   if (interrupt_time - last_interrupt_time > 200)  //compares last time interrupt was finished to now. We give 200 millis to ignore rebounds
   {
@@ -122,22 +160,24 @@ ISR(PCINT0_vect) {
 
 
     /**************************************************************************************************************************************************************/
-    //UP BUTTON IS PRESSED
+    //NB OF MEALS BUTTON IS PRESSED
     if (minNb <= voltage && voltage <= maxNb) {
-
+      if (meal_nb < max_meal_nb) meal_nb++;
+      else meal_nb = 1;
     }
-    
+
 
     /**************************************************************************************************************************************************************/
-    //DOWN BUTTON IS PRESSED
+    //SIZE OF MEALS BUTTON IS PRESSED
     if (minSize <= voltage && voltage <= maxSize) {
-
+      if (meal_size < max_meal_size) meal_size++;
+      else meal_size = 1;
     }
-    
+
 
 
     /**************************************************************************************************************************************************************/
-    //SELECT BUTTON IS PRESSED
+    //RESET BUTTON IS PRESSED
     if (minReset <= voltage && voltage <= maxReset) {
 
     }

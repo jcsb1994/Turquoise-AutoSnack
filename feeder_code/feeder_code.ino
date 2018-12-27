@@ -5,6 +5,7 @@
 
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <SoftwareServo.h>
 
 
 
@@ -24,8 +25,9 @@
 
 //WDT variables
 volatile int watchDog_counter;
+int wd_target = 4; //target for wd counter
 
-//External interrupt variables
+//PC interrupt variables
 volatile int buttonFlag;
 unsigned long last_interrupt_time;
 int voltage;
@@ -42,16 +44,23 @@ int voltage;
 //Food Data variables
 
 //amount of meals per day
-byte meal_nb;
+byte meal_nb = 1;
 #define max_meal_nb 3
 
 //amount of cylinder spins (meal size)
-byte meal_size;
+byte meal_size = 1;
 #define max_meal_size 5
+
+
+//Servo variables
+byte pos = 0;
+
 
 /**************************************************************************************************************************************************************/
 ////OBJECTS
-/**************************************************************************************************************************************************************/
+/**************************************************************************************************************************************************************/ 
+SoftwareServo feederServo;      // creates feederServo as object to control a servo
+
 
 /**************************************************************************************************************************************************************/
 ////SETUP
@@ -60,6 +69,9 @@ byte meal_size;
 void setup() {
 
   watchDog_counter = 0;
+
+  //SoftwareServo setup
+  feederServo.attach(0);                        // attaches the servo on pin 0 to the servo object
 
 
   //pins setup
@@ -79,17 +91,21 @@ void setup() {
 
 
 
-  //External interrupt setup
+  //Pin Change interrupt setup
   //Enable interrupts
-  GIMSK |= (1 << INT0);
+  GIMSK |= (1 << PCIE);
+  PCMSK |= _BV(PCINT2);
   sei();
+
+  //EXT INTERRUPT STUFF
+  //IMSK |= (1 << PCIE);
   //set low lvl trigger (keeps triggering while button not released)
-  MCUCR &= ~(1 << ISC01);
+  //MCUCR &= ~(1 << ISC01);
   //TRYING TO PUT THIS INSTEAD!! (FOR FALLING EDGE):  MCUCR |= (1 << ISC01);
-  MCUCR &= ~(1 << ISC00);
+  //MCUCR |= (1 << ISC00);
 
 
-  ADCSRA &= ~_BV(ADEN);      //Turn ADC off, saves ~230uA           
+ 
   sleep_enable();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
@@ -102,16 +118,33 @@ void setup() {
 
 
 void loop() {
+   ADCSRA &= ~_BV(ADEN);      //Turn ADC off, saves ~230uA
   sleep_cpu();
-  //ADCSRA |= _BV(ADEN);        //will ADC need to be turned on after sleep?
-  
+  ADCSRA |= _BV(ADEN);        //will ADC need to be turned on after sleep?
+
   PORTB |= (1 << ledPin);
   delay(100);
   PORTB ^= (1 << ledPin);
-  delay(500);
+
+  //  delay(500);
 
   if (buttonFlag) {
+    buttonsAction();
     buttonFlag = 0;
+  }
+
+  if (watchDog_counter >= wd_target) {
+        for (pos = 0; pos <= 180; pos += 1)       // goes from 0 degrees to 180 degrees
+  PORTB |= (1 << ledPin);
+  delay(100);
+  PORTB ^= (1 << ledPin);
+    delay(100);
+  PORTB ^= (1 << ledPin);
+    delay(100);
+  PORTB ^= (1 << ledPin);
+    delay(100);
+  PORTB ^= (1 << ledPin);
+    watchDog_counter = 0;
   }
 }
 
@@ -120,76 +153,17 @@ void loop() {
 ////FUNCTIONS
 /**************************************************************************************************************************************************************/
 
-/*Sleep function, activates external interrupts*/
-/*void sleep() {
-
-  GIMSK |= _BV(INT0);
-   sei();                                  // Enable interrupts
-    MCUCR |= 1<<ISC01; // Falling EDGE
 
 
 
-
-  //PCMSK |= _BV(PCINT2);                   // Use PB2 as interrupt pin (PCINT3 would be 3, etc.)
-  ADCSRA &= ~_BV(ADEN);                   // ADC off
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);    // replaces above statement
-
-  sleep_enable();                         // Sets the Sleep Enable bit in the MCUCR Register (SE BIT)
-  // sei();                                  // Enable interrupts
-  sleep_cpu();                            // sleep
-
-  cli();                                  // Disable interrupts
-  //PCMSK &= ~_BV(PCINT2);                  // Turn off PB2 as interrupt pin
-  sleep_disable();                        // Clear SE bit
-  ADCSRA |= _BV(ADEN);                    // ADC on
-
-  sei();                                  // Enable interrupts
-  } // sleep*/
-
-
-
-ISR(INT0_vect) { //NOT PCINT0_vect!
-
-  unsigned long interrupt_time = millis(); //saves time at which this interrupt starts
-  if (interrupt_time - last_interrupt_time > 200)  //compares last time interrupt was finished to now. We give 200 millis to ignore rebounds
-  {
-
-    voltage = analogRead(voltagePin);
-    buttonFlag = 1; //tell the arduino a button was pressed
-
-
-
-    /**************************************************************************************************************************************************************/
-    //NB OF MEALS BUTTON IS PRESSED
-    if (minNb <= voltage && voltage <= maxNb) {
-      if (meal_nb < max_meal_nb) meal_nb++;
-      else meal_nb = 1;
-    }
-
-
-    /**************************************************************************************************************************************************************/
-    //SIZE OF MEALS BUTTON IS PRESSED
-    if (minSize <= voltage && voltage <= maxSize) {
-      if (meal_size < max_meal_size) meal_size++;
-      else meal_size = 1;
-    }
-
-
-
-    /**************************************************************************************************************************************************************/
-    //RESET BUTTON IS PRESSED
-    if (minReset <= voltage && voltage <= maxReset) {
-
-    }
-
-    //SAVE WHEN THE INTERRUPT OCCURED TO PREVENT BOUNCES FROM TRIGGERING MULTIPLE INTERRUPTS
-    last_interrupt_time = interrupt_time;
+  ISR(PCINT0_vect) { //NOT PCINT0_vect!
+    if (!(PINB & (1 << PB2))) buttonFlag = 1; //tell the arduino a button was pressed, not released
   }
-}
 
 
 
-ISR(WDT_vect) {
-  watchDog_counter++;
-}
+
+  ISR(WDT_vect) {
+    watchDog_counter++;
+  }
 

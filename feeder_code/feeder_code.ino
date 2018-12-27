@@ -13,7 +13,6 @@
 ////PINS
 /**************************************************************************************************************************************************************/
 
-
 #define switchPin  2
 #define ledPin  1
 #define voltagePin  4
@@ -25,7 +24,7 @@
 
 //WDT variables
 volatile int watchDog_counter;
-int wd_target = 4; //target for wd counter
+int wd_target = 2; //target for wd counter
 
 //PC interrupt variables
 volatile int buttonFlag;
@@ -44,21 +43,21 @@ int voltage;
 //Food Data variables
 
 //amount of meals per day
-byte meal_nb = 1;
+int meal_nb = 1;
 #define max_meal_nb 3
 
 //amount of cylinder spins (meal size)
-byte meal_size = 1;
+int meal_size = 1;
 #define max_meal_size 5
 
 
 //Servo variables
-byte pos = 0;
+int pos = 0; //NEEDS TO BE AN INT, NOT A BYTE
 
 
 /**************************************************************************************************************************************************************/
 ////OBJECTS
-/**************************************************************************************************************************************************************/ 
+/**************************************************************************************************************************************************************/
 SoftwareServo feederServo;      // creates feederServo as object to control a servo
 
 
@@ -68,7 +67,7 @@ SoftwareServo feederServo;      // creates feederServo as object to control a se
 
 void setup() {
 
-  watchDog_counter = 0;
+  // watchDog_counter = 0;
 
   //SoftwareServo setup
   feederServo.attach(0);                        // attaches the servo on pin 0 to the servo object
@@ -79,15 +78,6 @@ void setup() {
   PORTB |= (1 << switchPin);
   DDRB |= (1 << ledPin);
 
-
-
-
-  //Watchdog timer setup
-  //This order of commands is important and cannot be combined
-  MCUSR &= ~(1 << WDRF); //Clear the watch dog reset
-  WDTCR |= (1 << WDCE) | (1 << WDE); //Set WD_change enable, set WD enable
-  WDTCR = 0B100001; //Set prescaler to 8 sec (see p.46 of datasheet to change prescaler), and OVERWRITE WDTCR value ( dont just use |= )
-  WDTCR |= _BV(WDIE); //Set the interrupt enable, this will keep unit from resetting after each int
 
 
 
@@ -105,7 +95,7 @@ void setup() {
   //MCUCR |= (1 << ISC00);
 
 
- 
+
   sleep_enable();
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 }
@@ -118,34 +108,34 @@ void setup() {
 
 
 void loop() {
-   ADCSRA &= ~_BV(ADEN);      //Turn ADC off, saves ~230uA
+  //Watchdog timer setup  //Putting this in setup causes a problem when servo writing
+  //This order of commands is important and cannot be combined
+  MCUSR &= ~(1 << WDRF); //Clear the watch dog reset
+  WDTCR |= (1 << WDCE) | (1 << WDE); //Set WD_change enable, set WD enable
+  WDTCR = 0B100001; //Set prescaler to 8 sec (see p.46 of datasheet to change prescaler), and OVERWRITE WDTCR value ( dont just use |= )
+  WDTCR |= _BV(WDIE); //Set the interrupt enable, this will keep unit from resetting after each int
+
+  ADCSRA &= ~_BV(ADEN);      //Turn ADC off, saves ~230uA
   sleep_cpu();
   ADCSRA |= _BV(ADEN);        //will ADC need to be turned on after sleep?
 
   PORTB |= (1 << ledPin);
   delay(100);
   PORTB ^= (1 << ledPin);
+  delay(100);
 
-  //  delay(500);
+
+  if (!(watchDog_counter % wd_target)) {
+    feedTheFish();
+  }
+
 
   if (buttonFlag) {
-    buttonsAction();
+    //  buttonsAction();
     buttonFlag = 0;
   }
 
-  if (watchDog_counter >= wd_target) {
-        for (pos = 0; pos <= 180; pos += 1)       // goes from 0 degrees to 180 degrees
-  PORTB |= (1 << ledPin);
-  delay(100);
-  PORTB ^= (1 << ledPin);
-    delay(100);
-  PORTB ^= (1 << ledPin);
-    delay(100);
-  PORTB ^= (1 << ledPin);
-    delay(100);
-  PORTB ^= (1 << ledPin);
-    watchDog_counter = 0;
-  }
+
 }
 
 
@@ -156,14 +146,14 @@ void loop() {
 
 
 
-  ISR(PCINT0_vect) { //NOT PCINT0_vect!
-    if (!(PINB & (1 << PB2))) buttonFlag = 1; //tell the arduino a button was pressed, not released
-  }
+ISR(PCINT0_vect) { //NOT PCINT0_vect!
+  if (!(PINB & (1 << PB2))) buttonFlag = 1; //tell the arduino a button was pressed, not released
+}
 
 
 
 
-  ISR(WDT_vect) {
-    watchDog_counter++;
-  }
+ISR(WDT_vect) {
+  watchDog_counter++;
+}
 

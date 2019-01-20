@@ -31,12 +31,13 @@ volatile int buttonFlag;
 unsigned long last_interrupt_time;
 int voltage;
 
-// values are set depending on resistor values. Common resistor is 10k
-#define minNb  190 //175 to 185 based on a 4.7k resistor value for UP arrow button
+// values are set depending on resistor values.
+//3 resistors used (1 per button): 1.5k, 5.6k, 7.5k
+#define minNb  190 //175 to 185 based on a ___ resistor value for "Num of meals" button
 #define maxNb  205
-#define minSize  210 //189 to 220 based on a 1k resistor value for DOWN arrow button
+#define minSize  210 //189 to 220 based on a ___ resistor value for "Size of meals" button
 #define maxSize  220
-#define minReset  175 //120 to 166 based on a 10k resistor value for SELECT button
+#define minReset  175 //120 to 166 based on a ___ resistor value for SELECT button
 #define maxReset  189
 
 
@@ -80,12 +81,12 @@ void setup() {
 
 
 
-
   //Pin Change interrupt setup
   //Enable interrupts
   GIMSK |= (1 << PCIE);
   PCMSK |= _BV(PCINT2);
   sei();
+
 
   //EXT INTERRUPT STUFF
   //IMSK |= (1 << PCIE);
@@ -93,7 +94,6 @@ void setup() {
   //MCUCR &= ~(1 << ISC01);
   //TRYING TO PUT THIS INSTEAD!! (FOR FALLING EDGE):  MCUCR |= (1 << ISC01);
   //MCUCR |= (1 << ISC00);
-
 
 
   sleep_enable();
@@ -156,4 +156,3 @@ ISR(PCINT0_vect) { //NOT PCINT0_vect!
 ISR(WDT_vect) {
   watchDog_counter++;
 }
-

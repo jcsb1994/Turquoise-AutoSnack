@@ -9,34 +9,38 @@ void buttonsAction() {
 
 
     /**************************************************************************************************************************************************************/
-    if (minNb <= voltage && voltage <= maxNb) {  //NB OF MEALS BUTTON IS PRESSED
-
-      leds = 3 << nbLed; //turn buzzer and "nb of meals" button led
-      updateShiftRegister();
-      delay(100);
-      leds = 0;
-      updateShiftRegister();
-
-
+    //NB OF MEALS BUTTON IS PRESSED
+    if (minNb <= voltage && voltage <= maxNb) {
       if (meal_nb < max_meal_nb) meal_nb++;
       else meal_nb = 1;
+          for (int i = 0; i < 2; i++) {
+      PORTB ^= (1 << ledPin);
+      delay(1000);
+    }
     }
 
 
     /**************************************************************************************************************************************************************/
-    /*  if (minSize <= voltage && voltage <= maxSize) {  //SIZE OF MEALS BUTTON IS PRESSED
-
-        if (meal_size < max_meal_size) meal_size++;
-        else meal_size = 1;
-      } */
+    //SIZE OF MEALS BUTTON IS PRESSED
+    if (minSize <= voltage && voltage <= maxSize) {
+      if (meal_size < max_meal_size) meal_size++;
+      else meal_size = 1;
+          for (int i = 0; i < 6; i++) {
+      PORTB ^= (1 << ledPin);
+      delay(500);
+    }
+    }
 
 
 
     /**************************************************************************************************************************************************************/
-    //if (minReset <= voltage && voltage <= maxReset) {  //RESET BUTTON IS PRESSED
-
-
-    // }
+    //RESET BUTTON IS PRESSED
+    if (minReset <= voltage && voltage <= maxReset) {
+    for (int i = 0; i < 10; i++) {
+      PORTB ^= (1 << ledPin);
+      delay(100);
+    }
+    }
 
     //SAVE WHEN THE INTERRUPT OCCURED TO PREVENT BOUNCES FROM TRIGGERING MULTIPLE INTERRUPTS
     last_interrupt_time = interrupt_time;

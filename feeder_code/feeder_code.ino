@@ -25,22 +25,34 @@
 /**************************************************************************************************************************************************************/
 
 //WDT variables
-volatile int watchDog_counter;
-int wd_target = 2; //target for wd counter
+volatile int watchDog_counter = 0;
+int wd_target = 20; //target for wd counter, changes depending on user settings for number of meals per day
 
 //PC interrupt variables
 volatile int buttonFlag;
 unsigned long last_interrupt_time;
 int voltage;
 
-// values are set depending on resistor values.
-//3 resistors used (1 per button): 1.5k, 5.6k, 7.5k
-#define minNb  0 //175 to 185 based on a ___ resistor value for "Num of meals" button
-#define maxNb  1023
-#define minSize   //189 to 220 based on a ___ resistor value for "Size of meals" button
-#define maxSize
-#define minReset   //120 to 166 based on a ___ resistor value for SELECT button
-#define maxReset
+//Voltage divider button values (they are the same no matter the voltage)  5 X 1,5K OHMS  
+//button 1 is "Nb of meals"
+//calculated value on 1023 between 800ohms and 60 ohms is 71
+#define min1  140
+#define max1  159
+
+//button 2 is "Size of meals"
+//calculated value on 1023 between 800ohms and 45 ohms is 54
+#define min2  109
+#define max2  139
+
+//button 3 is "Reset"
+//calculated value on 1023 between 800ohms and 30 ohms is 37
+#define min3  70
+#define max3  90
+
+//button 4 is "toggle meal led"
+//calculated value on 1023 between 800ohms and 15 ohms is 19
+#define min4  20
+#define max4  49
 
 
 //Food Data variables
@@ -66,10 +78,11 @@ int pos = 0; //NEEDS TO BE AN INT, NOT A BYTE
 */
 byte leds = 0;
 //bit constants
+//Byte = 0B buzzer resetLed ... servoLogic
 #define buzzer 7
-#define nbLed 6
+#define resetLed 6
 #define sizeLed 5
-#define resetLed 4
+#define nbLed 4
 #define servoVcc 3
 #define signalLed 2
 #define servoLogic 0
@@ -91,12 +104,11 @@ void setup() {
   //pins setup
   DDRB &= ~(1 << switchPin);
   PORTB |= (1 << switchPin);
+  DDRB &= ~(1 << voltagePin);
+  PORTB |= (1 << voltagePin);
   DDRB |= (5 << 1);     //set pins 1 and 3 as outputs
+//pin 0 should be output too. why works? looks like latchpin doesnt need to be output..
 
-
-  //74hc9595 setup
-  leds = 0;
-  updateShiftRegister();
 
 
   //SoftwareServo setup
@@ -123,35 +135,49 @@ void setup() {
 
 void loop() {
   //Watchdog timer setup  //Putting this in setup causes a problem when servo writing
+  cli();
   //This order of commands is important and cannot be combined
   MCUSR &= ~(1 << WDRF); //Clear the watch dog reset
   WDTCR |= (1 << WDCE) | (1 << WDE); //Set WD_change enable, set WD enable
   WDTCR = 0B100001; //Set prescaler to 8 sec (see p.46 of datasheet to change prescaler), and OVERWRITE WDTCR value ( dont just use |= )
   WDTCR |= _BV(WDIE); //Set the interrupt enable, this will keep unit from resetting after each int
+  sei();
+
+  //74hc9595 setup (doesnt work in setup function)
+  leds = 0;
+  updateShiftRegister();
 
   ADCSRA &= ~_BV(ADEN);      //Turn ADC off, saves ~230uA
   sleep_cpu();
   ADCSRA |= _BV(ADEN);        //will ADC need to be turned on after sleep?
 
 
+/*sketch works without the LOW button check (only 1 interrupt fires anyway, probably because voltage goes out of acceptable range 
+ * for button activation on the rising interrupt, so buttonsAction() doesn<t do anything when button is released*/   
+  if (!(PINB & (1 << switchPin)))  buttonFlag = 1; //tell the arduino a button was pressed, not released   
+  
+
   //DEBUG-------------------------------------------
-  leds = 1 << signalLed;  //turn on the big LED for telling fish food is coming
+  leds = 1 << signalLed;  //turn on the big LED for telling fish food is coming (in this case just for debugging)
   updateShiftRegister();
-  delay(100);
+  delay(10);
   leds = 0;
   updateShiftRegister();
-  delay(100);
+  //delay(10);*/
   //------------------------------------------------
 
-  
-  if (!(watchDog_counter % wd_target)) {
+  //check if time has come to feed
+  if (watchDog_counter >= wd_target) {
     feedTheFish();
+    watchDog_counter = 0;
   }
 
-  if (buttonFlag) {
-    buttonsAction();
+  //check if a button was pressed
+ if (buttonFlag) {
     buttonFlag = 0;
-  }
+    buttonsAction();
+    
+ }
 
 
 }
@@ -163,7 +189,7 @@ void loop() {
 
 
 ISR(PCINT0_vect) { //NOT PCINT0_vect!
-  if (!(PINB & (1 << switchPin))) buttonFlag = 1; //tell the arduino a button was pressed, not released
+
 }
 
 

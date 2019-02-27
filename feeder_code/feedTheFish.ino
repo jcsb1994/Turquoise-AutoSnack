@@ -12,6 +12,7 @@ void feedTheFish() {
   leds = 0B1001; //turn bits 3 and 0 ON, which are the 2 servo transistors
   updateShiftRegister();
   delay(100);
+
   
   //3: Shake the food supplies to make it fall in---------------------------------------------
 

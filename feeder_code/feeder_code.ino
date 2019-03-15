@@ -26,7 +26,13 @@
 
 //WDT variables
 volatile int watchDog_counter = 0;
-int wd_target = 20; //target for wd counter, changes depending on user settings for number of meals per day
+//wd counter must reach a target, different depending on nb of meals per day
+//1 meal per day: target = 10800
+//2 meals: trgt = 5400
+//3 meals: trgt = 3600
+int wd_target = 2
+
+; //target for wd counter, changes depending on user settings for number of meals per day
 
 //PC interrupt variables
 volatile int buttonFlag;
@@ -46,7 +52,7 @@ int voltage;
 
 //button 3 is "Reset"
 //calculated value on 1023 between 800ohms and 30 ohms is 37
-#define min3  70
+#define min3  60
 #define max3  90
 
 //button 4 is "toggle meal led"

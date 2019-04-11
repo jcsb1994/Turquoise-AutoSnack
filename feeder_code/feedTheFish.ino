@@ -2,20 +2,23 @@ void feedTheFish() {
 
   //1: Signal that there's an incoming meal--------------------------------------------------
   //This feature can be toggled On or OFF by the user (with the ON-OFF switch)
-  for (int i = 0; i < 6; i++) {
+ if (food_signal_flag) {
+  for (int i = 0; i < 10; i++) {
     leds ^= (1 << signalLed);  //turn on the big LED for telling fish food is coming
     updateShiftRegister();
     delay(100);
   }
-
+ }
+ 
   //2: activate servo transistors to power it up----------------------------------------------
   leds = 0B1001; //turn bits 3 and 0 ON, which are the 2 servo transistors
   updateShiftRegister();
-  delay(1000);
+  delay(500);
 
-  
+
   //3: Shake the food supplies to make it fall in---------------------------------------------
 
+  
 
   //4: feed based on size of meals------------------------------------------------------------
   for (int s = 0; s < meal_size; s++) {
@@ -34,10 +37,11 @@ void feedTheFish() {
       SoftwareServo::refresh();               // required by SoftwareServo Library to sweep correctly
     }
     delay(200);                                // required by SoftwareServo Library to sweep correctly
+  }
 
     leds = 0;
     updateShiftRegister();
     delay(100);
-  }
+  
 
 }

@@ -6,10 +6,10 @@ void buttonsAction() {
     // { */
   //delay(10);
   voltage = 0;
-  for (int i = 0; i < 5; i ++) {
+  for (int i = 0; i < 20; i ++) {
     voltage += analogRead(voltagePin);
   }
-  voltage /= 5;
+  voltage /= 20;
 
   //DEBUG-------------------------------------------
   /*for (int i = 0; i < voltage; i += 10) {
@@ -30,6 +30,21 @@ void buttonsAction() {
     //1: button's action
     if (meal_nb < max_meal_nb) meal_nb++;   //add a meal during the day, up to 3 per day
     else meal_nb = 1;
+    /* //1 meal per day: target = 10800
+      //2 meals: trgt = 5400
+      //3 meals: trgt = 3600
+    */
+    switch (meal_nb) {
+      case 1:
+        wd_target = 1;
+        break;
+      case 2:
+        wd_target = 2;
+        break;
+      case 3:
+        wd_target = 4;
+        break;
+    }
 
     //2: cue the user button 1 was pressed
     leds = 9 << nbLed; //turn buzzer and "nb of meals" button led
@@ -87,6 +102,7 @@ void buttonsAction() {
   if (min3 <= voltage && voltage <= max3) {  //RESET BUTTON IS PRESSED
 
     //1: button's action
+    watchDog_counter = wd_target;
 
     //2: cue the user button 3 was pressed
     leds = 3 << resetLed; //turn buzzer and "reset" button led
@@ -103,14 +119,17 @@ void buttonsAction() {
   if (min4 <= voltage && voltage <= max4) {  //TOGGLE LED BUTTON IS PRESSED
 
     //1: button's action
+    food_signal_flag = ~food_signal_flag;
 
     //2: cue the user button 4 was pressed
-    leds = 1 << buzzer;
-    updateShiftRegister();
-    delay(100);
+    if (food_signal_flag) {
+      leds = 1 << buzzer;
+      updateShiftRegister();
+      delay(100);
 
-    leds = 0;
-    updateShiftRegister();
+      leds = 0;
+      updateShiftRegister();
+    }
 
 
   }

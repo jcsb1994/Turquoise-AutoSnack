@@ -30,35 +30,36 @@ volatile int watchDog_counter = 0;
 //1 meal per day: target = 10800
 //2 meals: trgt = 5400
 //3 meals: trgt = 3600
-int wd_target = 2
-
-; //target for wd counter, changes depending on user settings for number of meals per day
+int wd_target = 2; //target for wd counter, changes depending on user settings for number of meals per day
 
 //PC interrupt variables
 volatile int buttonFlag;
-unsigned long last_interrupt_time;
+//unsigned long last_interrupt_time; //unused for now
 int voltage;
 
-//Voltage divider button values (they are the same no matter the voltage)  5 X 1,5K OHMS  
+//Voltage divider button values (they are the same no matter the voltage)  5 X 1,5K OHMS --- OLD WRONG INFO
+
+//version avril 2019: 3 x 2.2k resistor, aucun entre digital pin et le 1er bouton, et aucun du bouton 4 vers GND.
+
 //button 1 is "Nb of meals"
 //calculated value on 1023 between 800ohms and 60 ohms is 71
-#define min1  140
-#define max1  159
+#define min1 151
+#define max1  200
 
 //button 2 is "Size of meals"
 //calculated value on 1023 between 800ohms and 45 ohms is 54
-#define min2  109
-#define max2  139
+#define min2  100
+#define max2  150
 
 //button 3 is "Reset"
 //calculated value on 1023 between 800ohms and 30 ohms is 37
-#define min3  60
-#define max3  90
+#define min3  51
+#define max3  100
 
 //button 4 is "toggle meal led"
 //calculated value on 1023 between 800ohms and 15 ohms is 19
-#define min4  20
-#define max4  49
+#define min4  0
+#define max4  50
 
 
 //Food Data variables
@@ -70,6 +71,9 @@ int meal_nb = 1;
 //amount of cylinder spins (meal size)
 int meal_size = 1;
 #define max_meal_size 5
+
+//food signal for fish to know (if turned on, an LED flashes towards the tank so fish can notice food is coming)
+boolean food_signal_flag = 0;
 
 
 //Servo variables
@@ -113,7 +117,7 @@ void setup() {
   DDRB &= ~(1 << voltagePin);
   PORTB |= (1 << voltagePin);
   DDRB |= (5 << 1);     //set pins 1 and 3 as outputs
-//pin 0 should be output too. why works? looks like latchpin doesnt need to be output..
+  //pin 0 should be output too. why works? looks like latchpin doesnt need to be output..
 
 
 
@@ -121,11 +125,7 @@ void setup() {
   feederServo.attach(0);                        // attaches the servo on pin 0 to the servo object
 
 
-  //Pin Change interrupt setup
-  //Enable interrupts
-  GIMSK |= (1 << PCIE);
-  PCMSK |= _BV(PCINT2);
-  sei();
+
 
 
   sleep_enable();
@@ -140,6 +140,12 @@ void setup() {
 
 
 void loop() {
+  //Pin Change interrupt setup (NOT SURE IF NEEDS TO BE IN LOOP YET. MIGHT STOP BUTTONS FROM NOT RESPONDING ON THE FIRST WDT AFTER SERVO)
+  //Enable interrupts
+  GIMSK |= (1 << PCIE);
+  PCMSK |= _BV(PCINT2);
+  sei();
+
   //Watchdog timer setup  //Putting this in setup causes a problem when servo writing
   cli();
   //This order of commands is important and cannot be combined
@@ -158,10 +164,10 @@ void loop() {
   ADCSRA |= _BV(ADEN);        //will ADC need to be turned on after sleep?
 
 
-/*sketch works without the LOW button check (only 1 interrupt fires anyway, probably because voltage goes out of acceptable range 
- * for button activation on the rising interrupt, so buttonsAction() doesn<t do anything when button is released*/   
-  if (!(PINB & (1 << switchPin)))  buttonFlag = 1; //tell the arduino a button was pressed, not released   
-  
+  /*sketch works without the LOW button check (only 1 interrupt fires anyway, probably because voltage goes out of acceptable range
+     for button activation on the rising interrupt, so buttonsAction() doesn<t do anything when button is released*/
+  if (!(PINB & (1 << switchPin)))  buttonFlag = 1; //tell the arduino a button was pressed, not released
+
 
   //DEBUG-------------------------------------------
   leds = 1 << signalLed;  //turn on the big LED for telling fish food is coming (in this case just for debugging)
@@ -172,18 +178,17 @@ void loop() {
   //delay(10);*/
   //------------------------------------------------
 
+  //check if a button was pressed
+  if (buttonFlag) {
+    buttonFlag = 0;
+    buttonsAction();
+  }
+
   //check if time has come to feed
   if (watchDog_counter >= wd_target) {
     feedTheFish();
     watchDog_counter = 0;
   }
-
-  //check if a button was pressed
- if (buttonFlag) {
-    buttonFlag = 0;
-    buttonsAction();
-    
- }
 
 
 }

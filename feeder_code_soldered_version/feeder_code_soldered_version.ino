@@ -1,25 +1,6 @@
 
 
 
-
-
-
-
-
-//USE SOLDERED VERSION OF CODE
-
-
-
-
-
-
-
-
-
-
-
-
-
 /**************************************************************************************************************************************************************/
 ////LIBRARIES
 /**************************************************************************************************************************************************************/
@@ -51,16 +32,16 @@ volatile int watchDog_counter = 0;
 //1 meal per day: target = 10800
 //2 meals: trgt = 5400
 //3 meals: trgt = 3600
-int wd_target = 2; //target for wd counter, changes depending on user settings for number of meals per day
+int wd_target = 10800; //target for wd counter, changes depending on user settings for number of meals per day
 
 //PC interrupt variables
 volatile int buttonFlag;
 //unsigned long last_interrupt_time; //unused for now
 int voltage;
 
-//Voltage divider button values (they are the same no matter the voltage)  5 X 1,5K OHMS --- OLD WRONG INFO
 
-//version avril 2019: 3 x 2.2k resistor, aucun entre digital pin et le 1er bouton, et aucun du bouton 4 vers GND.
+
+//VERSRION 1 JULY 2019: 33K, 3K, 3.9K, 3K, 1K
 
 //button 1 is "Nb of meals"
 //calculated value on 1023 between 800ohms and 60 ohms is 71
@@ -70,7 +51,7 @@ int voltage;
 //button 2 is "Size of meals"
 //calculated value on 1023 between 800ohms and 45 ohms is 54
 #define min2  80
-#define max2  120
+#define max2  140
 
 //button 3 is "Reset"
 //calculated value on 1023 between 800ohms and 30 ohms is 37
@@ -107,17 +88,30 @@ int pos = 0; //NEEDS TO BE AN INT, NOT A BYTE
   Q4 is transistor for servo: bit 3
   Q7 is transistor for servo logic: bit 0
 */
-byte leds = 0;
-//bit constants
-//Byte = 0B buzzer resetLed ... servoLogic
-#define buzzer 7
-#define resetLed 6
-#define sizeLed 5
-#define nbLed 4
-#define servoVcc 3
-#define signalLed 2
-#define servoLogic 0
 
+
+  byte leds = 0;
+  //bit constants for a DIP 74hc595
+  //Byte = 0B buzzer resetLed ... servoLogic
+  #define buzzer 7
+  #define resetLed 6
+  #define sizeLed 5
+  #define nbLed 4
+  #define servoVcc 3
+  #define signalLed 2
+  #define servoLogic 0
+
+/*
+//bit constants for a SMD 74hc595
+//Byte = 7B buzzer resetLed ... servoLogic
+#define buzzer 0
+#define resetLed 1
+#define sizeLed 2
+#define nbLed 3
+#define servoVcc 4
+#define signalLed 5
+#define servoLogic 7
+*/
 /**************************************************************************************************************************************************************/
 ////OBJECTS
 /**************************************************************************************************************************************************************/
@@ -164,7 +158,7 @@ void loop() {
   //Pin Change interrupt setup (NOT SURE IF NEEDS TO BE IN LOOP YET. MIGHT STOP BUTTONS FROM NOT RESPONDING ON THE FIRST WDT AFTER SERVO)
   //Enable interrupts
   GIMSK |= (1 << PCIE);
-  PCMSK |= _BV(PCINT2);
+  PCMSK |= _BV(PCINT4);
   sei();
 
   //Watchdog timer setup  //Putting this in setup causes a problem when servo writing
@@ -187,16 +181,16 @@ void loop() {
 
   /*sketch works without the LOW button check (only 1 interrupt fires anyway, probably because voltage goes out of acceptable range
      for button activation on the rising interrupt, so buttonsAction() doesn<t do anything when button is released*/
-  if (!(PINB & (1 << switchPin)))  buttonFlag = 1; //tell the arduino a button was pressed, not released
+  if (!(PINB & (1 << voltagePin)))  buttonFlag = 1; //tell the arduino a button was pressed, not released
 
 
   //DEBUG-------------------------------------------
   /*leds = 1 << signalLed;  //turn on the big LED for telling fish food is coming (in this case just for debugging)
-  updateShiftRegister();
-  delay(10);
-  leds = 0;
-  updateShiftRegister();
-  //delay(10);*/
+    updateShiftRegister();
+    delay(10);
+    leds = 0;
+    updateShiftRegister();
+    //delay(10);*/
   //------------------------------------------------
 
   //check if a button was pressed

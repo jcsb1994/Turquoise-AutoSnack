@@ -26,7 +26,7 @@ void buttonsAction() {
 
 
   /**************************************************************************************************************************************************************/
-  if (min1 <= voltage && voltage <= max1) {  //NB OF MEALS BUTTON IS PRESSED
+  if (min4 <= voltage && voltage <= max4) {  //NB OF MEALS BUTTON IS PRESSED
 
     //1: button's action
     if (meal_nb < max_meal_nb) meal_nb++;   //add a meal during the day, up to 3 per day
@@ -37,17 +37,17 @@ void buttonsAction() {
     */
     switch (meal_nb) {
       case 1:
-        wd_target = 1;
+        wd_target = 10800;
         break;
       case 2:
-        wd_target = 2;
+        wd_target = 5400;
         break;
       case 3:
-        wd_target = 4;
+        wd_target = 3600;
         break;
     }
 
-    //2: cue the user button 1 was pressed
+    //2: cue the user button 4 was pressed
     leds = 9 << nbLed; //turn buzzer and "nb of meals" button led
     updateShiftRegister();
     delay(100);
@@ -70,13 +70,13 @@ void buttonsAction() {
 
 
   /**************************************************************************************************************************************************************/
-  if (min2 <= voltage && voltage <= max2) {  //SIZE OF MEALS BUTTON IS PRESSED
+  if (min3 <= voltage && voltage <= max3) {  //SIZE OF MEALS BUTTON IS PRESSED
 
     //1: button's action
     if (meal_size < max_meal_size) meal_size++;   //increase size of each meal
     else meal_size = 1;
 
-    //2: cue the user button 2 was pressed
+    //2: cue the user button 3 was pressed
 
     leds = 5 << sizeLed; //turn buzzer and "size of meals" button led
     updateShiftRegister();
@@ -100,13 +100,13 @@ void buttonsAction() {
   }
 
   /**************************************************************************************************************************************************************/
-  if (min3 <= voltage && voltage <= max3) {  //RESET BUTTON IS PRESSED
+  if (min1 <= voltage && voltage <= max1) {  //TOGGLE LED BUTTON IS PRESSED
 
     //1: button's action
     watchDog_counter = wd_target;
 
-    //2: cue the user button 3 was pressed
-    leds = 3 << resetLed; //turn buzzer and "reset" button led
+    //2: cue the user button 1 was pressed
+    leds = 7 << nbLed; //all 3 leds
     updateShiftRegister();
     delay(100);
 
@@ -117,14 +117,17 @@ void buttonsAction() {
   }
 
   /**************************************************************************************************************************************************************/
-  if (min4 <= voltage && voltage <= max4) {  //TOGGLE LED BUTTON IS PRESSED
+  if (min2 <= voltage && voltage <= max2) {  //RESET BUTTON IS PRESSED
 
     //1: button's action
     food_signal_flag = ~food_signal_flag;
 
-    //2: cue the user button 4 was pressed
+
+
+    //2: cue the user button 2 was pressed
+    
     if (food_signal_flag) {
-      leds = 1 << buzzer;
+      leds = 3 << resetLed; //turn buzzer and "reset" button led
       updateShiftRegister();
       delay(100);
 
